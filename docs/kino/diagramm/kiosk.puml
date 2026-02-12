@@ -1,0 +1,117 @@
+@startuml kino buy v2
+
+title "Покупка билетов в кинотеатр (cache + строгая консистентность)"
+
+autonumber
+actor Front as u order 10
+participant "App" as app order 20
+participant "Cache" as ch order 21
+database "Database" as db order 30
+participant "Pay API" as pay order 40
+participant "Notification" as sms order 50
+
+group "Каталог/поиск"
+    u -> app++ : GET /?filters
+    app -> ch++ : read Catalog/Movies
+    alt "Cache hit"
+        ch --> app : Movies + Filters
+        ch--
+    else "Cache miss"
+        ch --> app : Not found
+        ch--
+        app -> db++ : Load catalog
+        db --> app : Movies + Filters
+        db--
+        app -> ch++ : write Catalog/Movies (TTL)
+        ch --> app : Stored
+        ch--
+    end
+    app --> u : 200 OK + list + filters
+    app--
+end
+
+group "Просмотр фильма и мест"
+    u -> app++ : GET /movie/{id}
+    app -> ch++ : read Movie/{id} + Seats
+    alt "Cache hit"
+        ch --> app : Movie + Schedule + Seats
+        ch--
+    else "Cache miss"
+        ch --> app : Not found
+        ch--
+        app -> db++ : Load movie + schedule + seats
+        db --> app : Data
+        db--
+        app -> ch++ : write Movie/{id} + Seats (TTL)
+        ch --> app : Stored
+        ch--
+    end
+    app --> u : 200 OK + data
+    app--
+end
+
+group "Бронирование мест (10 минут)"
+    u -> app++ : POST /reservations {sessionId, seats[]}
+    app -> db++ : Reserve seats (transaction, unique seat lock)
+    alt "Seats available"
+        db --> app : ReservationId, TTL=10m
+        db--
+        app -> ch++ : Invalidate Seats for session
+        ch --> app : OK
+        ch--
+        app --> u : 200 OK + reservationId + timer
+    else "Conflict"
+        db --> app : Seats already taken
+        db--
+        app --> u : 409 Conflict
+    end
+    app--
+end
+
+group "Оплата (5 минут)"
+    u -> app++ : POST /orders {reservationId, amount}
+    app -> app : Authenticated?
+    opt "Auth required"
+        app --> u : Request phone
+        u -> app : POST /auth {phone}
+        app -> db++ : Find or create user
+        db --> app : UserId
+        db--
+    end
+    app -> db++ : Create order + payment (status=pending, ttl=5m)
+    db --> app : OrderId, PaymentId
+    db--
+    app -> pay++ : POST /pay/create {orderId, amount}
+    alt "Pay API available"
+        pay --> app : ProviderPaymentId
+        app -> db++ : Save ProviderPaymentId
+        db --> app : OK
+        db--
+        pay --> u : Payment widget
+        pay--
+    else "Pay API unavailable"
+        pay --> app : Error 503 "Платежная система не доступна"
+        pay--
+        app -> db++ : Mark payment failed
+        db --> app : OK
+        db--
+        app --> u : Payment unavailable, try later
+    end
+    app--
+
+    u -> pay++ : Pay
+    pay --> app++ : Webhook payment подтверждена
+    pay--
+    app -> db++ : Confirm payment + issue tickets
+    db --> app : Tickets issued
+    db--
+    app -> ch++ : Invalidate Seats for session
+    ch --> app : OK
+    ch--
+    app --> sms : Send tickets link
+    sms --> u : Link to tickets
+    app --> u : Tickets on screen
+    app--
+end
+
+@enduml
