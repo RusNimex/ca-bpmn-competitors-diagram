@@ -1,0 +1,359 @@
+openapi: 3.0.3
+info:
+  title: Kino — API покупки билетов
+  description: |
+    API приложения для онлайн-покупки билетов в кинотеатр.
+    Соответствует [sequence.puml](diagramm/sequence.puml) и [SRS.md](SRS.md).
+  version: 1.0.0
+
+servers:
+  - url: /api/v1
+    description: Базовый путь API
+
+tags:
+  - name: Каталог
+    description: Поиск и просмотр фильмов (UR-001, UR-002)
+  - name: Сеансы и места
+    description: Расписание, план зала (UR-002, UR-003, FR-001)
+  - name: Бронирование
+    description: Резерв мест на 10 минут (FR-002, FR-003)
+  - name: Оплата
+    description: Создание заказа, оплата (UR-004, FR-007, FR-009)
+  - name: Пользователь
+    description: Аутентификация, история (FR-011, UR-005)
+  - name: Отмена
+    description: Отмена покупки (UR-006, FR-008)
+
+paths:
+  # Каталог/поиск — sequence.puml: GET /?filters
+  /movies:
+    get:
+      tags: [Каталог]
+      summary: Поиск фильмов
+      description: |
+        Поиск по названию, времени, жанру (UR-001).
+        Используется cache, при miss — загрузка из БД (sequence: Каталог/поиск).
+      operationId: searchMovies
+      parameters:
+        - name: title
+          in: query
+          schema: { type: string }
+          description: Название фильма
+        - name: genre
+          in: query
+          schema: { type: string }
+          description: Жанр
+        - name: date
+          in: query
+          schema: { type: string, format: date }
+          description: Дата сеанса
+        - name: time
+          in: query
+          schema: { type: string, format: time }
+          description: Время сеанса
+      responses:
+        '200':
+          description: Список фильмов и доступные фильтры
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MovieListResponse'
+        '500':
+          description: Ошибка сервера
+
+  # Просмотр фильма и мест — sequence.puml: GET /movie/{id}
+  /movies/{movieId}:
+    get:
+      tags: [Каталог, Сеансы и места]
+      summary: Информация о фильме, расписание и места
+      description: |
+        Фильм, расписание, план зала, свободные места, стоимость (UR-002, UR-003, FR-001).
+        Cache hit/miss по Movie/{id} + Seats (sequence: Просмотр фильма и мест).
+      operationId: getMovieWithScheduleAndSeats
+      parameters:
+        - name: movieId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Фильм, расписание, схема зала и свободные места
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MovieWithScheduleAndSeats'
+        '404':
+          description: Фильм не найден
+        '500':
+          description: Ошибка сервера
+
+  # Бронирование — sequence.puml: POST /reservations
+  /reservations:
+    post:
+      tags: [Бронирование]
+      summary: Забронировать места
+      description: |
+        Блокировка мест на 10 минут (FR-002, FR-003).
+        При успехе — reservationId и таймер. При конфликте — 409.
+        Инвалидируется кэш мест сеанса (sequence: Бронирование мест).
+      operationId: createReservation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionId, seats]
+              properties:
+                sessionId:
+                  type: string
+                  description: ID сеанса
+                seats:
+                  type: array
+                  items: { type: string }
+                  description: Список ID мест
+      responses:
+        '200':
+          description: Бронь создана
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reservationId: { type: string }
+                  expiresAt: { type: string, format: date-time }
+                  ttlSeconds: { type: integer, example: 600 }
+        '409':
+          description: Места уже заняты (Conflict)
+        '400':
+          description: Неверные данные
+        '500':
+          description: Ошибка сервера
+
+  # Оплата и история
+  /orders:
+    post:
+      tags: [Оплата]
+      summary: Создать заказ и инициировать оплату
+      description: |
+        Создание заказа по reservationId. Время на оплату — 5 минут (FR-007).
+        При необходимости — запрос телефона (POST /auth).
+        После подтверждения оплаты банком — выдача билетов, SMS (FR-009, FR-013).
+      operationId: createOrder
+      security:
+        - bearerAuth: []
+        - phoneAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reservationId]
+              properties:
+                reservationId:
+                  type: string
+                amount:
+                  type: number
+                  format: decimal
+                  description: Сумма (опционально, может вычисляться из брони)
+      responses:
+        '200':
+          description: Заказ создан, ссылка на виджет оплаты
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orderId: { type: string }
+                  paymentId: { type: string }
+                  paymentUrl: { type: string, format: uri }
+                  expiresAt: { type: string, format: date-time }
+        '401':
+          description: Требуется аутентификация (номер телефона)
+        '400':
+          description: Бронь истекла или недействительна
+        '503':
+          description: Платёжная система недоступна
+        '500':
+          description: Ошибка сервера
+
+  # Аутентификация — sequence.puml: POST /auth
+  /auth:
+    post:
+      tags: [Пользователь]
+      summary: Аутентификация по номеру телефона
+      description: |
+        Поиск или создание пользователя по номеру телефона (FR-011).
+        Вызывается при необходимости перед POST /orders.
+      operationId: authByPhone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone:
+                  type: string
+                  description: Номер телефона
+      responses:
+        '200':
+          description: Успешная аутентификация
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userId: { type: string }
+                  token: { type: string }
+        '400':
+          description: Неверный формат номера
+        '500':
+          description: Ошибка сервера
+
+    get:
+      tags: [Пользователь]
+      summary: История покупок (UR-005, FR-012)
+      description: История покупок покупателя (UR-005, FR-012).
+      operationId: getOrderHistory
+      security:
+        - bearerAuth: []
+        - phoneAuth: []
+      responses:
+        '200':
+          description: Список заказов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderSummary'
+        '401':
+          description: Требуется аутентификация
+        '500':
+          description: Ошибка сервера
+
+  # Отмена покупки — UR-006, FR-008
+  /orders/{orderId}/cancel:
+    post:
+      tags: [Отмена]
+      summary: Отменить покупку
+      description: |
+        Отмена возможна не позднее чем за 10 минут до начала сеанса (FR-008).
+      operationId: cancelOrder
+      security:
+        - bearerAuth: []
+        - phoneAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Заказ отменён
+        '400':
+          description: Отмена невозможна (менее 10 минут до сеанса)
+        '404':
+          description: Заказ не найден
+        '401':
+          description: Требуется аутентификация
+        '500':
+          description: Ошибка сервера
+
+  # Webhook от Pay API (входящий, для документации)
+  /webhooks/payment:
+    post:
+      tags: [Оплата]
+      summary: Webhook подтверждения оплаты
+      description: |
+        Вызывается платёжной системой при подтверждении оплаты (sequence: Pay API → App).
+        Внутренний эндпоинт, не для клиента.
+      operationId: paymentWebhook
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                orderId: { type: string }
+                status: { type: string, enum: [confirmed, failed] }
+                providerPaymentId: { type: string }
+      responses:
+        '200':
+          description: Webhook обработан
+        '400':
+          description: Неверные данные
+        '500':
+          description: Ошибка обработки
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    phoneAuth:
+      type: apiKey
+      in: header
+      name: X-Phone-Token
+
+  schemas:
+    MovieListResponse:
+      type: object
+      properties:
+        movies:
+          type: array
+          items: { $ref: '#/components/schemas/Movie' }
+        filters:
+          type: object
+          additionalProperties: true
+
+    Movie:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        genre: { type: string }
+        ageRating: { type: string, description: 'FR-010: возрастной ценз' }
+
+    MovieWithScheduleAndSeats:
+      allOf:
+        - $ref: '#/components/schemas/Movie'
+        - type: object
+          properties:
+            schedule:
+              type: array
+              items: { $ref: '#/components/schemas/Session' }
+            seats:
+              type: array
+              items: { $ref: '#/components/schemas/Seat' }
+
+    Session:
+      type: object
+      properties:
+        id: { type: string }
+        cinemaId: { type: string }
+        hallId: { type: string }
+        startAt: { type: string, format: date-time }
+        price: { type: number }
+
+    Seat:
+      type: object
+      properties:
+        id: { type: string }
+        row: { type: integer }
+        number: { type: integer }
+        status: { type: string, enum: [free, reserved, sold] }
+
+    OrderSummary:
+      type: object
+      properties:
+        orderId: { type: string }
+        movieTitle: { type: string }
+        sessionStartAt: { type: string, format: date-time }
+        seats: { type: array, items: { type: string } }
+        amount: { type: number }
+        status: { type: string, enum: [pending, paid, cancelled] }

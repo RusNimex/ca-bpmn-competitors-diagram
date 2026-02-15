@@ -1,0 +1,135 @@
+openapi: 3.0.3
+info:
+  title: Mar-Tech Competitors — API рекомендаций
+  description: |
+    API рекомендаций конкурентов для дашборда.
+    Версия 2.0 — расширение v1.0: добавлены стратегии 3 и 4.
+    Реализация: `GET /api/v1/account_recommendation` (RecommendAction, RecommendConfig).
+  version: 2.0.0
+
+servers:
+  - url: /api/v1
+    description: Базовый путь API (routes/api/v1.php)
+
+tags:
+  - name: Рекомендации
+    description: GET /account_recommendation — список рекомендуемых аккаунтов (стратегии 1–4)
+
+paths:
+  # GET /api/v1/account_recommendation — RecommendAction, RecommendConfig
+  /account_recommendation:
+    get:
+      tags: [Рекомендации]
+      summary: Список рекомендуемых аккаунтов
+      description: |
+        Возвращает до 50 аккаунтов (параметр limit 1–50, по умолчанию 10).
+        **Стратегии (algo):**
+        - Не передан или **PBUW** — 1. Коллаборативная фильтрация (UR-001).
+        - **CATG** — 2. По категории соцсети (UR-002). Требуются social, socialId.
+        - **MSB** — 3. По категории бизнеса (2ГИС, МСБ). Требуются social, socialId.
+        - **COMPOSITE** или social+socialId без algo — 4. Fallback по стратегиям 1→2→3.
+        Аккаунты пользователя исключаются (BR-003). Сортировка по подписчикам (BR-004).
+      operationId: getAccountRecommendation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: algo
+          in: query
+          schema:
+            type: string
+            enum: [PBUW, CATG, MSB, COMPOSITE]
+          description: |
+            PBUW — стратегия 1. CATG — стратегия 2. MSB — стратегия 3. COMPOSITE — стратегия 4.
+            При social+socialId без algo используется COMPOSITE.
+        - name: social
+          in: query
+          schema: { type: string }
+          description: Тип соцсети (обязателен при algo=CATG, MSB, COMPOSITE).
+        - name: socialId
+          in: query
+          schema: { type: string }
+          description: ID аккаунта в соцсети (обязателен при algo=CATG, MSB, COMPOSITE).
+        - name: simple
+          in: query
+          schema: { type: boolean, default: false }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+        - name: debug
+          in: query
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Список рекомендаций (до limit аккаунтов)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationsResponse'
+        '401':
+          description: Неавторизован — переадресация на страницу входа (NFR-002)
+        '500':
+          description: Ошибка сервера (виджет скрывается, FR-002)
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    RecommendationsResponse:
+      type: object
+      properties:
+        accounts:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/RecommendedAccount'
+        strategy:
+          type: string
+          enum: [collaborative, by_category, by_msb, composite]
+          description: Фактически использованная стратегия (1–4)
+        strategiesTried:
+          type: array
+          items:
+            type: string
+            enum: [collaborative, by_category, by_msb]
+          description: При strategy=composite — список стратегий, по которым шёл fallback.
+
+    RecommendedAccount:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID аккаунта
+        socialNetwork:
+          type: string
+          enum: [instagram, youtube, vk, telegram]
+        username:
+          type: string
+        followersCount:
+          type: integer
+          description: Количество подписчиков (сортировка по убыванию, BR-004)
+        category:
+          type: string
+          description: Категория соцсети
+        businessCategory:
+          type: string
+          description: Категория/подкатегория 2ГИС (для стратегии 3)
+        segment:
+          type: string
+          enum: [regional, city, local]
+          description: Сегмент аккаунта (при стратегии 3)
+        avatarUrl:
+          type: string
+          format: uri
+
+    ErrorMessage:
+      type: object
+      properties:
+        code:
+          type: string
+          enum: [LIMIT_REACHED, ALREADY_ADDED, TARIFF_UPGRADE_REQUIRED, NETWORK_UNAVAILABLE]
+        message:
+          type: string

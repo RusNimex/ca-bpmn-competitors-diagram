@@ -1,4 +1,4 @@
-@startuml kino buy v2
+@startuml kino buy v1
 
 title "Покупка билетов в кинотеатр (cache + строгая консистентность)"
 

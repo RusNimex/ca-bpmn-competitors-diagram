@@ -1,0 +1,122 @@
+openapi: 3.0.3
+info:
+  title: Mar-Tech Competitors — API рекомендаций
+  description: |
+    API рекомендаций конкурентов для дашборда.
+    Соответствует [SRS_v1.md](SRS_v1.md). Решение v1.0 — стратегии 1 и 2.
+    Реализация: `GET /api/v1/account_recommendation` (RecommendAction, RecommendConfig).
+  version: 1.0.0
+
+servers:
+  - url: /api/v1
+    description: Базовый путь API (routes/api/v1.php)
+
+tags:
+  - name: Рекомендации
+    description: GET /account_recommendation — список рекомендуемых аккаунтов (UR-001, UR-002)
+
+paths:
+  # GET /api/v1/account_recommendation — RecommendAction, RecommendConfig
+  /account_recommendation:
+    get:
+      tags: [Рекомендации]
+      summary: Список рекомендуемых аккаунтов
+      description: |
+        Возвращает до 50 аккаунтов (параметр limit 1–50, по умолчанию 10).
+        **Стратегии (algo):**
+        - Не передан или **PBUW** — Стратегия 1 (коллаборативная фильтрация), общий список (UR-001).
+        - **CATG** — Стратегия 2 (по категории соцсети), для дашборда выбранного аккаунта (UR-002). Требуются social и socialId.
+        - При social+socialId без algo — используется COMPOSITE (fallback).
+        Аккаунты пользователя исключаются (BR-003). Сортировка по подписчикам (BR-004).
+      operationId: getAccountRecommendation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: algo
+          in: query
+          schema:
+            type: string
+            enum: [PBUW, CATG]
+          description: Код алгоритма. PBUW — стратегия 1, CATG — стратегия 2.
+        - name: social
+          in: query
+          schema: { type: string }
+          description: Тип соцсети (обязателен при algo=CATG или для COMPOSITE).
+        - name: socialId
+          in: query
+          schema: { type: string }
+          description: ID аккаунта в соцсети (обязателен при algo=CATG или для COMPOSITE).
+        - name: simple
+          in: query
+          schema: { type: boolean, default: false }
+          description: Без метрик.
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+          description: Лимит выдачи.
+        - name: debug
+          in: query
+          schema: { type: boolean, default: false }
+          description: Отладочная информация.
+      responses:
+        '200':
+          description: Список рекомендаций (до limit аккаунтов)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationsResponse'
+        '401':
+          description: Неавторизован — переадресация на страницу входа (NFR-002)
+        '500':
+          description: Ошибка сервера (виджет скрывается, FR-002)
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    RecommendationsResponse:
+      type: object
+      properties:
+        accounts:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/RecommendedAccount'
+        strategy:
+          type: string
+          enum: [collaborative, by_category]
+          description: Использованная стратегия (1 или 2)
+
+    RecommendedAccount:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID аккаунта
+        socialNetwork:
+          type: string
+          enum: [instagram, youtube, vk, telegram]
+        username:
+          type: string
+        followersCount:
+          type: integer
+          description: Количество подписчиков (сортировка по убыванию, BR-004)
+        category:
+          type: string
+          description: Категория соцсети
+        avatarUrl:
+          type: string
+          format: uri
+
+    ErrorMessage:
+      type: object
+      properties:
+        code:
+          type: string
+          enum: [LIMIT_REACHED, ALREADY_ADDED, TARIFF_UPGRADE_REQUIRED, NETWORK_UNAVAILABLE]
+        message:
+          type: string

@@ -1,0 +1,31 @@
+@startuml kino use cases
+
+title "Покупка билетов в кинотеатр — Use Case"
+
+left to right direction
+
+actor "Покупатель" as buyer
+actor "Система оплаты" as pay #LightGray
+actor "Сервис уведомлений" as sms #LightGray
+
+rectangle "Приложение кинотеатра" {
+  usecase (Поиск фильма) as UC1
+  usecase (Просмотр расписания\nи информации о фильме) as UC2
+  usecase (Выбор мест\nи бронирование) as UC3
+  usecase (Оплата билетов) as UC4
+  usecase (Просмотр истории покупок) as UC5
+  usecase (Отмена покупки) as UC6
+}
+
+buyer --> UC1
+buyer --> UC2
+buyer --> UC3
+buyer --> UC4
+buyer --> UC5
+buyer --> UC6
+
+UC4 ..> UC3 : <<include>>
+UC4 ..> pay : <<uses>>
+UC4 ..> sms : <<uses>>
+
+@enduml
