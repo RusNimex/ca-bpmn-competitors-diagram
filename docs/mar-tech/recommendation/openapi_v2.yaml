@@ -26,7 +26,7 @@ paths:
         **Стратегии (algo):**
         - Не передан или **PBUW** — 1. Коллаборативная фильтрация (UR-001).
         - **CATG** — 2. По категории соцсети (UR-002). Требуются social, socialId.
-        - **MSB** — 3. По категории бизнеса (2ГИС, МСБ). Требуются social, socialId.
+        - **MSB** — 3. По категории бизнеса (МСБ). Требуются social, socialId.
         - **COMPOSITE** или social+socialId без algo — 4. Fallback по стратегиям 1→2→3.
         Аккаунты пользователя исключаются (BR-003). Сортировка по подписчикам (BR-004).
       operationId: getAccountRecommendation
@@ -116,7 +116,7 @@ components:
           description: Категория соцсети
         businessCategory:
           type: string
-          description: Категория/подкатегория 2ГИС (для стратегии 3)
+          description: Категория/подкатегория бизнеса (для стратегии 3)
         segment:
           type: string
           enum: [regional, city, local]
