@@ -1,0 +1,76 @@
+@startuml msb_import_sequence
+
+title "МСБ v1 — импорт 2Gis (CSV), сопоставление, добавление на дашборд"
+
+autonumber
+actor "Сотрудник" as empl order 10
+participant "Админка" as web order 20
+participant "backgroundImport2Gis" as worker order 25
+database "БД МСБ" as db order 40
+participant "Social API" as social order 50
+
+== UC-1: Загрузка CSV ==
+empl -> web++ : Открыть импорт
+web --> empl : Форма: файл + индустрия (FR-007)
+
+empl -> web : CSV, categoryId, addressInsertToo, withoutAccount
+alt "Валидация OK"
+    web -> web : Сохранить файл (tempFile)
+    web -> web : exec(php yiic.php backgroundImport2Gis tempFile categoryId addressInsertToo withoutAccount &)
+    web -> worker : Запуск в фоне
+    web --> empl : Редирект на страницу прогресса (UC-1)
+    web--
+    
+    worker -> worker : Парс CSV построчно (FR-005: обрезка >532 символов)
+    loop "Батчами"
+        worker -> db++ : INSERT компании, категории, аккаунты (FR-003, FR-009)
+        db --> worker : OK
+        db--
+        worker -> worker : Обновить прогресс
+    end
+    worker -> worker : Удалить временный файл
+    
+    note over empl, worker
+      Параллельно: опрос прогресса
+      GET /getUploadProgress каждые 3–5 сек (FR-002)
+    end note
+    
+else "Ошибка валидации"
+    web --> empl : Ошибки валидации (FR-004)
+    web--
+end
+
+== UC-2: Сопоставление аккаунтов ==
+empl -> web++ : Открыть «Статистика»
+web -> db++ : SELECT по соцсетям (новые/сопоставленные)
+db --> web : Сводка
+db--
+web --> empl : Статистика (FR-008)
+
+empl -> web++ : «Сопоставить аккаунты»
+web -> db++ : Проверка по ID соцсети (FR-017)
+db --> web : Результаты
+db--
+web --> empl : Обновлённая статистика
+web--
+
+== UC-3: Добавление на дашборд МСБ ==
+empl -> web++ : «Добавить на дашборд МСБ»
+web -> social++ : Запрос ID аккаунтов
+alt "ID получен"
+    social --> web : ID аккаунтов
+    web -> db++ : Добавить к служебному пользователю МСБ (FR-018)
+    db --> web : OK
+    db--
+    web --> empl : Аккаунты на дашборде
+else "ID не получен"
+    social --> web : Ошибка / не найден
+    web -> db++ : Пометить аккаунт «битый» (FR-006)
+    db --> web : OK
+    db--
+    web --> empl : Аккаунт исключён из статистики
+end
+social--
+web--
+
+@enduml

@@ -84,3 +84,5 @@
 # Use Cases диаграмма
 
 # Sequence диаграмма
+
+- [sequence.puml](diagramm/sequence.puml) — загрузка рекомендаций (UR-001, UR-002), стратегии 1 и 2.

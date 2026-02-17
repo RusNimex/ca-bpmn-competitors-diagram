@@ -1,0 +1,38 @@
+@startuml recommendation_srs_v1
+
+title "Рекомендации конкурентов (SRS v1.0) — стратегии 1 и 2"
+
+autonumber
+actor "Пользователь" as user order 10
+participant "Клиент\n(фронтенд)" as client order 20
+participant "Сервис\n(REST API)" as service order 30
+
+user -> client++ : Открывает список (UR-001) или дашборд аккаунта (UR-002)
+client -> client : Показать лоадер (FR-003)
+client -> service++ : GET /account_recommendation\n1: algo=PBUW | 2: algo=CATG, social, socialId
+alt "200 OK"
+    service --> client : accounts[], strategy (collaborative | by_category)
+    client -> client : Скрыть лоадер
+    alt "Список не пуст"
+        client --> user : Виджет с рекомендациями
+    else "Пусто"
+        client --> user : Виджет скрыт (BR-005)
+    end
+else "401"
+    service --> client : Unauthorized
+    client --> user : Переадресация на вход (NFR-002)
+else "500 / таймаут"
+    service --> client : Ошибка
+    client --> user : Виджет скрыт (FR-002)
+end
+service--
+client--
+
+note right of service
+  NFR-001: ответ не более 1 сек
+  CON-001: limit 1–50 (по умолчанию 10)
+  Добавление аккаунта на дашборд
+  — в сервисе main POST /ajax/addWatch
+end note
+
+@enduml
