@@ -1,0 +1,29 @@
+@startuml erd_conceptual_kino
+!theme plain
+title Концептуальная ER-диаграмма\nT-Bank (кино)
+
+skinparam linetype ortho
+skinparam backgroundColor #FEFEFE
+
+' Сущности без атрибутов — уровень предметной области
+entity "Бренд\n(сеть кинотеатров)" as brand
+entity "Кинотеатр\n(зал бренда)" as brand_hall
+entity "Кинозал\n(зал в кинотеатре)" as brand_hall_room
+entity "Фильм" as film
+entity "Сеанс\n(расписание: зал + фильм)" as schedule
+entity "Место и цена\n(место на сеанс, цена)" as seat_price
+entity "Клиент" as customer
+entity "Заказ\n(билеты клиента)" as customer_orders
+entity "Оплата заказа" as customer_order_payment
+
+' Связи между понятиями (концептуальный уровень — только смысл)
+brand -- brand_hall : "содержит кинотеатры"
+brand_hall -- brand_hall_room : "содержит кинозалы"
+brand_hall_room -- schedule : "в зале идут сеансы"
+film -- schedule : "на сеансе показывают фильм"
+schedule -- seat_price : "есть места с ценой"
+customer -- customer_orders : "оформляет заказы"
+seat_price -- customer_orders : "заказ на места"
+customer_orders -- customer_order_payment : "оплачивается"
+
+@enduml

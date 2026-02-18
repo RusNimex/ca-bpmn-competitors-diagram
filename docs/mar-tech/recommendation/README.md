@@ -35,7 +35,10 @@ docs/mar-tech/recommendation/
     ├── SRS_msb_v1.md
     ├── TDD_msb_v1.md
     └── diagramm/
-        └── sequence.puml
+        ├── sequence.puml           # Последовательность (импорт, прогресс)
+        ├── erd_conceptual_2gis.puml  # ER концептуальная (PlantUML)
+        ├── erd_logycal_2gis.puml     # ER логическая (PlantUML)
+        └── erd_physical_2gis.dbd    # ER физическая (Devart dbForge)
 ```
 
 ## Артефакты
@@ -51,3 +54,7 @@ docs/mar-tech/recommendation/
 | **service_main/README.md** | Обзор модуля импорта МСБ. |
 | **service_main/SRS_msb_v1.md** | SRS импорта 2GIS (CSV) в базу МСБ. |
 | **service_main/TDD_msb_v1.md** | Техдизайн импорта МСБ. |
+| **service_main/diagramm/sequence.puml** | Диаграмма последовательности импорта. |
+| **service_main/diagramm/erd_conceptual_2gis.puml** | ER концептуальная (сущности и связи). |
+| **service_main/diagramm/erd_logycal_2gis.puml** | ER логическая (атрибуты, типы, кратность). |
+| **service_main/diagramm/erd_physical_2gis.dbd** | ER физическая (таблицы БД msb, dbForge). |

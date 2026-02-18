@@ -1,0 +1,42 @@
+@startuml erd_conceptual_2gis
+!theme plain
+title Концептуальная ER-диаграмма\nимпорт 2GIS (МСБ)
+
+skinparam linetype ortho
+skinparam backgroundColor #FEFEFE
+
+' Сущности без атрибутов — уровень предметной области
+entity "Категория\n(индустрия)" as category
+entity "Подкатегория\n(рубрика)" as subcategory
+entity "Компания\n(бренд или юр. лицо)" as company
+entity "Соцсеть\n(аккаунт компании)" as social
+entity "Контактные данные\n(телефон, сайт, email)" as contact
+entity "Местоположение\n(адрес/точка компании)" as location
+entity "Страна" as country
+entity "Регион" as region
+entity "Район" as district
+entity "Город" as city
+entity "Район города" as city_area
+
+' Связи между понятиями (концептуальный уровень — только смысл, без кратности)
+category -- subcategory : "содержит подкатегории"
+category -- company : "к ней относятся компании"
+company -- subcategory : "имеет рубрики (M:N)"
+company -- social : "имеет соцсети"
+company -- contact : "имеет контакты"
+company -- location : "имеет местоположения"
+
+location -- country : "в стране"
+location -- region : "в регионе"
+location -- district : "в районе"
+location -- city : "в городе"
+location -- city_area : "в районе города"
+
+country -- region : "содержит регионы"
+region -- district : "содержит районы"
+region -- city : "содержит города"
+city -- city_area : "содержит районы"
+
+company -- company : "родитель (бренд)"
+
+@enduml

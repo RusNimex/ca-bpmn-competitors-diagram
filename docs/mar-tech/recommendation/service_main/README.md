@@ -34,4 +34,11 @@
 **Документы:**
 - [SRS_msb_v1.md](SRS_msb_v1.md) — полные требования v1
 - [TDD_msb_v1.md](TDD_msb_v1.md) — техдизайн (yiic backgroundImport2Gis, exec) v1
-- [diagramm/sequence.puml](diagramm/sequence.puml) — диаграмма последовательности
+- [diagramm/sequence.puml](diagramm/sequence.puml) — диаграмма последовательности (импорт, прогресс)
+
+**ER-диаграммы (схема БД 2GIS-импорта):**
+| Уровень | Файл | Описание |
+|---------|------|----------|
+| Концептуальная | [diagramm/erd_conceptual_2gis.puml](diagramm/erd_conceptual_2gis.puml) | Сущности и связи предметной области (PlantUML) |
+| Логическая | [diagramm/erd_logycal_2gis.puml](diagramm/erd_logycal_2gis.puml) | Сущности, атрибуты, типы, кратность (PlantUML) |
+| Физическая | [diagramm/erd_physical_2gis.dbd](diagramm/erd_physical_2gis.dbd) | Таблицы БД `msb` (Devart dbForge) |

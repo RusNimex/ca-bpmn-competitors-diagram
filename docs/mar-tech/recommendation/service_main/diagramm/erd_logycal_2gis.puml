@@ -1,0 +1,159 @@
+@startuml erd_logical_2gis
+
+!theme plain
+title Логическая ER-диаграмма\nимпорт 2GIS (МСБ)
+
+skinparam linetype ortho
+skinparam backgroundColor #FEFEFE
+
+' === Категории ===
+entity "Категория\n(индустрия)" as category {
+  * id : number
+  --
+  название : string
+}
+
+entity "Подкатегория" as subcategory {
+  * id : number
+  --
+  название : string
+  категория_id : number
+}
+
+' === Компания ===
+entity "Компания\n(бренд/компания)" as company {
+  * id : number
+  --
+  источник_id : number
+  тип : enum(brand, company)
+  название : string
+  категория_id : number
+  родитель_id : number
+  оценка : number
+  привязан : boolean
+  создано : datetime
+  обновлено : datetime
+  удалён : boolean
+}
+
+entity "Соцсеть компании" as company_social {
+  * (company_id, account_name, social_type) : PK
+  --
+  имя_аккаунта : string
+  соцсеть_id : string
+  тип_соцсети : enum
+  источник : enum
+  создано : datetime
+  обновлено : datetime
+}
+
+entity "Компания–подкатегория\n(M:N)" as company_subcategory {
+  * компания_id : number
+  * подкатегория_id : number
+}
+
+entity "Телефон компании" as company_phone {
+  * id : number
+  --
+  компания_id : number
+  телефон : string
+  тип : enum(mobile, local)
+}
+
+entity "Сайт компании" as company_site {
+  * id : number
+  --
+  компания_id : number
+  сайт : string
+}
+
+entity "Email компании" as company_email {
+  * id : number
+  --
+  компания_id : number
+  email : string
+}
+
+' === Гео ===
+entity "Страна" as geo_country {
+  * id : number
+  --
+  название : string
+}
+
+entity "Регион" as geo_region {
+  * id : number
+  --
+  страна_id : number
+  название : string
+}
+
+entity "Район" as geo_district {
+  * id : number
+  --
+  регион_id : number
+  название : string
+}
+
+entity "Город" as geo_city {
+  * id : number
+  --
+  страна_id : number
+  регион_id : number
+  район_id : number
+  название : string
+}
+
+entity "Район города" as geo_city_area {
+  * id : number
+  --
+  регион_id : number
+  город_id : number
+  название : string
+}
+
+entity "Местоположение\nкомпании" as company_geo {
+  * id : number
+  --
+  компания_id : number
+  страна_id : number
+  регион_id : number
+  район_id : number
+  город_id : number
+  район_города_id : number
+  адрес : string
+  широта : string
+  долгота : string
+}
+
+' === Связи: категории ===
+category ||--o{ subcategory : "содержит"
+
+' === Связи: компания ===
+category ||--o{ company : "относится к"
+company ||--o| company : "родитель"
+company ||--o{ company_social : "имеет соцсети"
+company ||--o{ company_subcategory : ""
+subcategory ||--o{ company_subcategory : ""
+company ||--o{ company_phone : "телефоны"
+company ||--o{ company_site : "сайты"
+company ||--o{ company_email : "email"
+company ||--o{ company_geo : "местоположения"
+
+' === Связи: гео ===
+geo_country ||--o{ geo_region : "содержит"
+geo_region ||--o{ geo_district : "содержит"
+geo_country ||--o{ geo_city : "в стране"
+geo_region ||--o{ geo_city : "в регионе"
+geo_district ||--o| geo_city : "в районе"
+geo_region ||--o{ geo_city_area : "в регионе"
+geo_city ||--o| geo_city_area : "в городе"
+
+company_geo }o--|| company : ""
+company_geo }o--|| geo_country : ""
+company_geo }o--|| geo_region : ""
+company_geo }o--o| geo_district : ""
+company_geo }o--o| geo_city : ""
+company_geo }o--o| geo_city_area : ""
+
+@enduml
