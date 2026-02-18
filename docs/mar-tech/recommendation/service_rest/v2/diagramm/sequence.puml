@@ -1,0 +1,49 @@
+@startuml recommendation_srs_1_1_0
+
+title "Рекомендации конкурентов (SRS 1.1.0) — стратегии 3 и 4"
+
+autonumber
+actor "Пользователь" as user order 10
+participant "Клиент\n(фронтенд)" as client order 20
+participant "Сервис\n(REST API)" as service order 30
+participant "База МСБ" as msb order 40
+
+user -> client++ : Дашборд аккаунта (UR-003, UR-004)
+client -> client : Показать лоадер (FR-003)
+client -> service++ : GET /account_recommendation\nalgo=MSB | COMPOSITE, social, socialId
+
+alt "algo=MSB (UR-003)"
+    service -> msb : Запрос по сегменту (regional/city/local)
+    msb --> service : Аккаунты из МСБ
+    service --> client : accounts[], strategy=msb, categoryId, segment
+else "algo=COMPOSITE или social+socialId без algo (UR-004)"
+    service -> service : Fallback: стратегия 1
+    alt "Результат пуст"
+        service -> service : Стратегия 2
+        alt "Результат пуст"
+            service -> msb : Стратегия 3
+            msb --> service : Аккаунты
+        end
+    end
+    service --> client : accounts[], strategy=composite, errors[]
+    note left of service
+        Если algo=COMPOSITE и есть ошибки
+        то в errors название algo и текст ошибки
+    end note
+end
+
+client -> client : Скрыть лоадер
+alt "Список не пуст"
+    client --> user : Виджет с рекомендациями
+else "Пусто"
+    client --> user : Виджет скрыт (BR-005)
+end
+service--
+client--
+
+note right of service
+  Стратегия 3 — данные из [service_main SRS](../../../service_main/SRS_msb_v1.md)
+  База 1.0.0: [../v1/diagramm/sequence.puml](../v1/diagramm/sequence.puml)
+end note
+
+@enduml

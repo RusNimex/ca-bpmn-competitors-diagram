@@ -3,9 +3,9 @@ info:
   title: Mar-Tech Competitors — API рекомендаций
   description: |
     API рекомендаций конкурентов для дашборда.
-    Версия 2.0 — расширение v1.0: добавлены стратегии 3 и 4.
+    Версия 1.1.0 — расширение 1.0.0: добавлены стратегии 3 и 4. См. [SRS_v2.md](SRS_v2.md).
     Реализация: `GET /api/v1/account_recommendation` (RecommendAction, RecommendConfig).
-  version: 2.0.0
+  version: 1.1.0
 
 servers:
   - url: /api/v1

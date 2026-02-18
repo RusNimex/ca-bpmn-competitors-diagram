@@ -3,7 +3,7 @@ info:
   title: Mar-Tech Competitors — API рекомендаций
   description: |
     API рекомендаций конкурентов для дашборда.
-    Соответствует [SRS_v1.md](SRS_v1.md). Решение v1.0 — стратегии 1 и 2.
+    Соответствует [SRS_v1.md](SRS_v1.md). Версия 1.0.0 — стратегии 1 и 2.
     Реализация: `GET /api/v1/account_recommendation` (RecommendAction, RecommendConfig).
   version: 1.0.0
 
@@ -26,7 +26,6 @@ paths:
         **Стратегии (algo):**
         - Не передан или **PBUW** — Стратегия 1 (коллаборативная фильтрация), общий список (UR-001).
         - **CATG** — Стратегия 2 (по категории соцсети), для дашборда выбранного аккаунта (UR-002). Требуются social и socialId.
-        - При social+socialId без algo — используется COMPOSITE (fallback).
         Аккаунты пользователя исключаются (BR-003). Сортировка по подписчикам (BR-004).
       operationId: getAccountRecommendation
       security:
@@ -41,11 +40,11 @@ paths:
         - name: social
           in: query
           schema: { type: string }
-          description: Тип соцсети (обязателен при algo=CATG или для COMPOSITE).
+          description: Тип соцсети (обязателен при algo=CATG).
         - name: socialId
           in: query
           schema: { type: string }
-          description: ID аккаунта в соцсети (обязателен при algo=CATG или для COMPOSITE).
+          description: ID аккаунта в соцсети (обязателен при algo=CATG).
         - name: simple
           in: query
           schema: { type: boolean, default: false }

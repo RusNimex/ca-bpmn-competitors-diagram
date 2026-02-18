@@ -1,6 +1,6 @@
-@startuml recommendation_srs_v1
+@startuml recommendation_srs_1_0_0
 
-title "Рекомендации конкурентов (SRS v1.0) — стратегии 1 и 2"
+title "Рекомендации конкурентов (SRS 1.0.0) — стратегии 1 и 2"
 
 autonumber
 actor "Пользователь" as user order 10
